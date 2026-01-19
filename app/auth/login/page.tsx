@@ -1,7 +1,8 @@
 "use client";
 
-import React from "react"
-
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,20 +14,28 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { getURL } from "@/lib/url";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [otp, setOtp] = useState("");
-  const [showOtp, setShowOtp] = useState(false);
+  const [email, setEmail] = useState<string>("");
+  const [otp, setOtp] = useState<string>("");
+  const [showOtp, setShowOtp] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [timer, setTimer] = useState<number>(0);
   const router = useRouter();
 
-  const handleLogin = async (e: React.FormEvent) => {
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (timer > 0) {
+      interval = setInterval(() => {
+        setTimer((prev: number) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [timer]);
+
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const supabase = createClient();
     setIsLoading(true);
@@ -35,34 +44,59 @@ export default function LoginPage() {
     try {
       if (!showOtp) {
         // Step 1: Request OTP
-        const { error } = await supabase.auth.signInWithOtp({
+        const { error: signUpError } = await supabase.auth.signInWithOtp({
           email,
           options: {
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
+            emailRedirectTo: `${getURL()}auth/callback`,
             shouldCreateUser: false,
           },
         });
-        if (error) throw error;
+        if (signUpError) throw signUpError;
         setShowOtp(true);
+        setTimer(60); // Start 60s countdown
       } else {
         // Step 2: Verify OTP
-        const { error } = await supabase.auth.verifyOtp({
+        const { error: verifyError } = await supabase.auth.verifyOtp({
           email,
           token: otp,
           type: "email",
         });
-        if (error) throw error;
+        if (verifyError) throw verifyError;
         router.push("/dashboard");
       }
-    } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "An error occurred");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    if (timer > 0 || isLoading) return;
+    
+    const supabase = createClient();
+    setIsLoading(true);
+    setError(null);
+    try {
+      const { error: resendError } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: `${getURL()}auth/callback`,
+          shouldCreateUser: false,
+        },
+      });
+      if (resendError) throw resendError;
+      setTimer(60);
+      setOtp("");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted flex items-center justify-center p-4">
+    <div className="min-h-screen bg-linear-to-br from-background via-background to-muted flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-4">
         <div className="text-center space-y-2 mb-8">
           <h1 className="text-3xl font-bold text-foreground">TaskFlow</h1>
@@ -89,38 +123,50 @@ export default function LoginPage() {
                     placeholder="you@example.com"
                     required
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
                     className="h-10"
                   />
                 </div>
               ) : (
-                <div className="space-y-2">
-                  <Label htmlFor="otp" className="text-sm font-medium">
-                    Enter Verification Code
-                  </Label>
-                  <Input
-                    id="otp"
-                    type="text"
-                    placeholder="123456"
-                    required
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value)}
-                    className="h-10 text-center tracking-widest text-lg font-bold"
-                    maxLength={6}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    We sent a code to your email.
-                  </p>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="otp" className="text-sm font-medium">
+                      Enter Verification Code
+                    </Label>
+                    <Input
+                      id="otp"
+                      type="text"
+                      placeholder="Enter code"
+                      required
+                      value={otp}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setOtp(e.target.value)}
+                      className="h-12 text-center tracking-[1em] text-xl font-bold"
+                      maxLength={8}
+                    />
+                    <div className="flex items-center justify-between px-1">
+                      <p className="text-xs text-muted-foreground">
+                        We sent a code to your email.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleResend}
+                        disabled={timer > 0 || isLoading}
+                        className="text-xs font-medium text-primary hover:underline disabled:opacity-50 disabled:no-underline"
+                      >
+                        {timer > 0 ? `Resend in ${timer}s` : "Resend code"}
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
               {error && (
-                <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md">
+                <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md animate-in fade-in slide-in-from-top-1">
                   {error}
                 </div>
               )}
               <Button
                 type="submit"
-                className="w-full h-10"
+                className="w-full h-10 shadow-sm"
                 disabled={isLoading}
               >
                 {isLoading 
@@ -131,7 +177,7 @@ export default function LoginPage() {
                 <Button
                   type="button"
                   variant="ghost"
-                  className="w-full text-xs"
+                  className="w-full text-xs text-muted-foreground hover:text-foreground"
                   onClick={() => setShowOtp(false)}
                 >
                   Change Email

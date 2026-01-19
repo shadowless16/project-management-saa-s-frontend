@@ -17,6 +17,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { getURL } from "@/lib/url";
+
 export default function SignUpPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -43,6 +45,7 @@ export default function SignUpPage() {
         email,
         password,
         options: {
+          emailRedirectTo: `${getURL()}auth/callback`,
           data: {
             full_name: fullName,
           },
@@ -58,7 +61,7 @@ export default function SignUpPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted flex items-center justify-center p-4">
+    <div className="min-h-screen bg-linear-to-br from-background via-background to-muted flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-4">
         <div className="text-center space-y-2 mb-8">
           <h1 className="text-3xl font-bold text-foreground">TaskFlow</h1>
