@@ -14,7 +14,10 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
 
   console.log(`[API] Request: ${path}`, options)
   
-  const response = await fetch(`${BACKEND_URL}${path}`, {
+  // Ensure no double slashes
+  const cleanUrl = `${BACKEND_URL.replace(/\/$/, '')}${path.startsWith('/') ? '' : '/'}${path}`
+  
+  const response = await fetch(cleanUrl, {
     ...options,
     headers,
   })
