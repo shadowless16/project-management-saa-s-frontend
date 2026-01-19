@@ -59,7 +59,7 @@ export default function LoginPage() {
         const { error: verifyError } = await supabase.auth.verifyOtp({
           email,
           token: otp,
-          type: "email",
+          type: "magiclink",
         });
         if (verifyError) throw verifyError;
         router.push("/dashboard");
