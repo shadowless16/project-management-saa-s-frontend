@@ -36,6 +36,10 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  // Debug log for Supabase URL
+  if (typeof window !== 'undefined') {
+    console.log('[Debug] Frontend Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
+  }
   return (
     <html lang="en">
       <body className={`font-sans antialiased`}>
