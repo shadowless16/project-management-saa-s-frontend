@@ -2,6 +2,7 @@ import { updateSession } from "@/lib/supabase/proxy";
 import { type NextRequest } from "next/server";
 
 export async function proxy(request: NextRequest) {
+  console.log('[Proxy Checking] URL:', request.nextUrl.pathname)
   return await updateSession(request);
 }
 
