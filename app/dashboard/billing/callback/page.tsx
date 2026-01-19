@@ -7,9 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
 
-export default function BillingCallback() {
+function BillingCallbackContent() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const reference = searchParams.get("reference");
 
@@ -64,5 +63,18 @@ export default function BillingCallback() {
         </CardFooter>
       </Card>
     </div>
+  );
+}
+
+export default function BillingCallback() {
+  return (
+    <React.Suspense fallback={
+      <div className="flex flex-col items-center justify-center min-h-screen gap-4">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    }>
+      <BillingCallbackContent />
+    </React.Suspense>
   );
 }

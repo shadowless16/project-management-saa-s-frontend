@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Plus, GripVertical, X, Loader2 } from "lucide-react";
 import { TaskModal, type TaskData } from "./task-modal";
 import { Role, hasPermission, Permission } from "@/lib/permissions";
+import { motion, AnimatePresence } from "framer-motion";
 
 export interface KanbanTask {
   id: string;
@@ -28,15 +29,34 @@ interface KanbanBoardProps {
 }
 
 const STATUS_COLUMNS = [
-  { id: "todo", label: "To Do", color: "bg-slate-50" },
+  { id: "todo", label: "To Do", color: "bg-slate-50/50" },
   {
     id: "in-progress",
     label: "In Progress",
-    color: "bg-blue-50",
+    color: "bg-blue-50/50",
   },
-  { id: "done", label: "Done", color: "bg-green-50" },
-  { id: "blocked", label: "Blocked", color: "bg-red-50" },
+  { id: "done", label: "Done", color: "bg-green-50/50" },
+  { id: "blocked", label: "Blocked", color: "bg-red-50/50" },
 ];
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.1 }
+  }
+};
+
+const columnVariants = {
+  hidden: { y: 20, opacity: 0 },
+  visible: { y: 0, opacity: 1 }
+};
+
+const cardVariants = {
+  hidden: { scale: 0.95, opacity: 0 },
+  visible: { scale: 1, opacity: 1 },
+  hover: { y: -2, transition: { duration: 0.2 } }
+};
 
 import { apiFetch } from "@/lib/api-client";
 import { useEffect } from "react";
@@ -236,9 +256,10 @@ export function KanbanBoard({ projectId, orgId, projectName, onTaskClick, userRo
       {error && (
         <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-md border border-destructive/20 flex items-center justify-between">
           <span>{error}</span>
-          <button onClick={() => setError(null)}><X className="w-4 h-4"/></button>
+          <button onClick={() => setError(null)}><X className="w-4 h-4 inline"/></button>
         </div>
       )}
+      
       {projectName && (
         <div>
           <h3 className="text-xl font-semibold text-foreground">
@@ -250,9 +271,18 @@ export function KanbanBoard({ projectId, orgId, projectName, onTaskClick, userRo
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <motion.div 
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+      >
         {STATUS_COLUMNS.map((column) => (
-          <div key={column.id} className="flex flex-col min-h-96">
+          <motion.div 
+            key={column.id} 
+            variants={columnVariants}
+            className="flex flex-col min-h-96"
+          >
             <div className="mb-4">
               <h4 className="font-semibold text-foreground text-sm mb-1">
                 {column.label}
@@ -269,60 +299,75 @@ export function KanbanBoard({ projectId, orgId, projectName, onTaskClick, userRo
                 column.color
               } ${draggedTask?.status === column.id ? "border-primary" : ""}`}
             >
-              {tasks
-                .filter((task) => task.status === column.id)
-                .map((task) => (
-                  <Card
-                    key={task.id}
-                    draggable
-                    onDragStart={() => handleDragStart(task)}
-                    className="cursor-move hover:shadow-md transition group"
-                    onClick={() => handleTaskClick(task)}
-                  >
-                    <CardContent className="p-3 space-y-2">
-                      <div className="flex items-start justify-between gap-2">
-                        <GripVertical className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 transition" />
-                        {canDeleteTask && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteTask(task.id);
-                            }}
-                            className="text-muted-foreground hover:text-destructive transition ml-auto"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
-                      <div>
-                        <h5 className="font-medium text-sm text-foreground line-clamp-2">
-                          {task.title}
-                        </h5>
-                        {task.description && (
-                          <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
-                            {task.description}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex items-center justify-between gap-2 pt-2">
-                        {task.priority && (
-                          <span
-                            className={`text-xs px-2 py-1 rounded ${getPriorityColor(
-                              task.priority
-                            )}`}
-                          >
-                            {task.priority}
-                          </span>
-                        )}
-                        {task.assignee && (
-                          <span className="text-xs bg-accent/20 text-accent px-2 py-1 rounded">
-                            {task.assignee}
-                          </span>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+              <AnimatePresence mode="popLayout">
+                {tasks
+                  .filter((task) => task.status === column.id)
+                  .map((task) => (
+                    <motion.div
+                      key={task.id}
+                      layout
+                      variants={cardVariants}
+                      initial="hidden"
+                      animate="visible"
+                      exit={{ scale: 0.95, opacity: 0 }}
+                      whileHover="hover"
+                    >
+                      <Card
+                        draggable
+                        onDragStart={() => handleDragStart(task)}
+                        className="cursor-move hover:shadow-md transition-shadow group relative overflow-hidden"
+                        onClick={() => handleTaskClick(task)}
+                      >
+                        <div className={`absolute left-0 top-0 w-1 h-full ${
+                          task.priority === 'high' ? 'bg-red-500' : 
+                          task.priority === 'medium' ? 'bg-yellow-500' : 'bg-green-500'
+                        }`} />
+                        <CardContent className="p-3 space-y-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <GripVertical className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 transition" />
+                            {canDeleteTask && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteTask(task.id);
+                                }}
+                                className="text-muted-foreground hover:text-destructive transition ml-auto"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                          <div>
+                            <h5 className="font-medium text-sm text-foreground line-clamp-2">
+                              {task.title}
+                            </h5>
+                            {task.description && (
+                              <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
+                                {task.description}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex items-center justify-between gap-2 pt-2">
+                            {task.priority && (
+                              <span
+                                className={`text-xs px-2 py-0.5 rounded-full font-medium ${getPriorityColor(
+                                  task.priority
+                                )}`}
+                              >
+                                {task.priority}
+                              </span>
+                            )}
+                            {task.assignee && (
+                              <span className="text-[10px] text-muted-foreground capitalize">
+                                {task.assignee}
+                              </span>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                  ))}
+              </AnimatePresence>
 
               {tasks.filter((t) => t.status === column.id).length === 0 && (
                 <div className="h-20 flex items-center justify-center text-muted-foreground text-xs">
@@ -341,9 +386,9 @@ export function KanbanBoard({ projectId, orgId, projectName, onTaskClick, userRo
                 Add task
               </Button>
             )}
-          </div>
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
 
       <TaskModal
         open={modalOpen}
